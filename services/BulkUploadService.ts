@@ -2,11 +2,12 @@
 import { HubType, UploadedFileRecord } from '../types';
 import { getHubAdapter } from '../adapters/uploadAdapters';
 
-interface UploadResult {
+export interface UploadResult {
   success: boolean;
   fileRecord?: UploadedFileRecord;
   hubRecord?: any;
   error?: string;
+  originalFile?: File; // Helper for batch processing identification
 }
 
 class BulkUploadService {
@@ -25,7 +26,8 @@ class BulkUploadService {
     if (isLocked) {
       return {
         success: false,
-        error: 'System is locked. Admin unlock required.'
+        error: 'System is locked. Admin unlock required.',
+        originalFile: file
       };
     }
 
@@ -36,7 +38,8 @@ class BulkUploadService {
     if (!allowedExtensions.includes(extension)) {
       return {
         success: false,
-        error: `Invalid file type. Allowed: ${allowedExtensions.join(', ')}`
+        error: `Invalid file type. Allowed: ${allowedExtensions.join(', ')}`,
+        originalFile: file
       };
     }
 
@@ -72,15 +75,51 @@ class BulkUploadService {
       return {
         success: true,
         fileRecord,
-        hubRecord
+        hubRecord,
+        originalFile: file
       };
 
     } catch (err: any) {
       return {
         success: false,
-        error: err.message || 'Unknown persistence error during upload.'
+        error: err.message || 'Unknown persistence error during upload.',
+        originalFile: file
       };
     }
+  }
+
+  /**
+   * Processes a batch of files with concurrency limiting to prevent UI freezing.
+   * Limits concurrent uploads to 3.
+   */
+  async processBatch(
+    files: File[],
+    hubType: HubType,
+    userEmail: string,
+    isLocked: boolean,
+    onItemComplete: (result: UploadResult) => void
+  ): Promise<void> {
+    const CONCURRENCY_LIMIT = 3;
+    const queue = [...files];
+
+    // Worker function to process items from queue
+    const worker = async () => {
+      while (queue.length > 0) {
+        const file = queue.shift();
+        if (!file) break;
+
+        const result = await this.uploadFile(file, hubType, userEmail, isLocked);
+        onItemComplete(result);
+      }
+    };
+
+    // Create worker pool
+    const workers = Array.from(
+      { length: Math.min(CONCURRENCY_LIMIT, files.length) }, 
+      () => worker()
+    );
+
+    await Promise.all(workers);
   }
 }
 

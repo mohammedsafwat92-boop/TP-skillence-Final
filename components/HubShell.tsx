@@ -14,8 +14,8 @@ const TABS: TabType[] = ['Overview', 'Library', 'Assign', 'Progress', 'Upload', 
 export const HubShell: React.FC<HubShellProps> = ({ title, activeTab, onTabChange, children }) => {
   return (
     <div className="bg-white rounded-3xl shadow-xl overflow-hidden border border-slate-100 min-h-[600px] flex flex-col">
-      <div className="bg-slate-900 px-8 py-6 border-b border-slate-800 flex justify-between items-center">
-        <h2 className="text-2xl font-bold text-white">{title}</h2>
+      <div className="bg-slate-900 px-4 md:px-8 py-6 border-b border-slate-800 flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+        <h2 className="text-xl md:text-2xl font-bold text-white">{title}</h2>
         <div className="flex gap-2">
            <div className="px-3 py-1 bg-orange-500/10 text-orange-500 text-xs font-bold rounded-full border border-orange-500/20 uppercase tracking-widest">
              Production Live
@@ -23,12 +23,12 @@ export const HubShell: React.FC<HubShellProps> = ({ title, activeTab, onTabChang
         </div>
       </div>
       
-      <div className="border-b border-slate-100 flex overflow-x-auto no-scrollbar bg-slate-50/50">
+      <div className="border-b border-slate-100 flex overflow-x-auto no-scrollbar bg-slate-50/50 w-full">
         {TABS.map(tab => (
           <button
             key={tab}
             onClick={() => onTabChange(tab)}
-            className={`px-8 py-4 text-sm font-bold transition-all border-b-2 flex-shrink-0 ${
+            className={`px-6 md:px-8 py-4 text-sm font-bold transition-all border-b-2 flex-shrink-0 whitespace-nowrap ${
               activeTab === tab 
                 ? 'border-orange-500 text-orange-600 bg-white' 
                 : 'border-transparent text-slate-400 hover:text-slate-600 hover:bg-slate-100'
@@ -39,7 +39,7 @@ export const HubShell: React.FC<HubShellProps> = ({ title, activeTab, onTabChang
         ))}
       </div>
 
-      <div className="flex-1 p-8 overflow-y-auto">
+      <div className="flex-1 p-4 md:p-8 overflow-y-auto">
         {children}
       </div>
     </div>

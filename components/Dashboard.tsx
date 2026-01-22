@@ -7,6 +7,7 @@ import {
 } from 'recharts';
 import { Agent, DashboardMetrics } from '../types';
 import { Users, Target, Award, Brain } from 'lucide-react';
+import TeamInsights from './TeamInsights';
 
 interface Props {
   agents: Agent[];
@@ -48,8 +49,11 @@ const Dashboard: React.FC<Props> = ({ agents }) => {
 
   return (
     <div className="space-y-6">
-      {/* Stat Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+      {/* New Team Insights Section */}
+      <TeamInsights agents={agents} />
+
+      {/* Stat Cards - Responsive Grid */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6">
         <StatCard 
           icon={<Users className="w-6 h-6 text-indigo-600" />}
           label="Total Agents"
@@ -76,13 +80,13 @@ const Dashboard: React.FC<Props> = ({ agents }) => {
         />
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 md:gap-6">
         {/* Proficiency Radar */}
-        <div className="bg-white p-6 rounded-xl shadow-sm border border-slate-200">
+        <div className="bg-white p-4 md:p-6 rounded-xl shadow-sm border border-slate-200">
           <h3 className="text-lg font-semibold text-slate-800 mb-4">Skill Proficiency Overview</h3>
-          <div className="h-80 w-full">
+          <div className="h-64 md:h-80 w-full">
             <ResponsiveContainer width="100%" height="100%">
-              <RadarChart cx="50%" cy="50%" outerRadius="80%" data={radarData}>
+              <RadarChart cx="50%" cy="50%" outerRadius="70%" data={radarData}>
                 <PolarGrid stroke="#e2e8f0" />
                 <PolarAngleAxis dataKey="subject" tick={{ fill: '#64748b', fontSize: 12 }} />
                 <PolarRadiusAxis angle={30} domain={[0, 100]} />
@@ -100,9 +104,9 @@ const Dashboard: React.FC<Props> = ({ agents }) => {
         </div>
 
         {/* CEFR Distribution */}
-        <div className="bg-white p-6 rounded-xl shadow-sm border border-slate-200">
+        <div className="bg-white p-4 md:p-6 rounded-xl shadow-sm border border-slate-200">
           <h3 className="text-lg font-semibold text-slate-800 mb-4">CEFR Distribution</h3>
-          <div className="h-80 w-full">
+          <div className="h-64 md:h-80 w-full">
             <ResponsiveContainer width="100%" height="100%">
               <PieChart>
                 <Pie
@@ -110,7 +114,7 @@ const Dashboard: React.FC<Props> = ({ agents }) => {
                   cx="50%"
                   cy="50%"
                   innerRadius={60}
-                  outerRadius={100}
+                  outerRadius={90}
                   fill="#8884d8"
                   paddingAngle={5}
                   dataKey="value"
@@ -129,10 +133,10 @@ const Dashboard: React.FC<Props> = ({ agents }) => {
       </div>
 
       {/* Top Performers Table */}
-      <div className="bg-white p-6 rounded-xl shadow-sm border border-slate-200">
+      <div className="bg-white p-4 md:p-6 rounded-xl shadow-sm border border-slate-200">
         <h3 className="text-lg font-semibold text-slate-800 mb-4">Top 5 Performers</h3>
-        <div className="overflow-x-auto">
-          <table className="w-full text-left">
+        <div className="overflow-x-auto w-full">
+          <table className="w-full text-left min-w-[500px]">
             <thead className="text-sm font-medium text-slate-500 border-b">
               <tr>
                 <th className="pb-3 pl-2">Name</th>
@@ -151,7 +155,7 @@ const Dashboard: React.FC<Props> = ({ agents }) => {
                     </span>
                   </td>
                   <td className="py-3 text-slate-600">{agent.overallAvg}%</td>
-                  <td className="py-3 text-slate-600 text-sm truncate max-w-[200px]">{agent.primaryOpportunity}</td>
+                  <td className="py-3 text-slate-600 text-sm truncate max-w-[150px] md:max-w-[200px]">{agent.primaryOpportunity}</td>
                 </tr>
               ))}
             </tbody>

@@ -1,8 +1,8 @@
 
-import React, { useState, useCallback } from 'react';
+import React, { useState } from 'react';
 import { Upload, X, FileCheck, ShieldAlert, CheckCircle2, Loader2, AlertCircle } from 'lucide-react';
 import { HubType, User } from '../types';
-import { bulkUploadService } from '../services/BulkUploadService';
+import { bulkUploadService, UploadResult } from '../services/BulkUploadService';
 import { accessService } from '../services/AccessService';
 
 interface BulkUploaderProps {
@@ -41,40 +41,45 @@ export const BulkUploader: React.FC<BulkUploaderProps> = ({ hubType, user, isLoc
     if (files.length === 0 || isProcessing) return;
 
     setIsProcessing(true);
-    const results: any[] = [];
-    const updatedFiles = [...files];
+    const pendingFiles = files.filter(f => f.status !== 'SUCCESS').map(f => f.file);
+    const results: UploadResult[] = [];
 
-    for (let i = 0; i < updatedFiles.length; i++) {
-      if (updatedFiles[i].status === 'SUCCESS') continue;
+    // Mark pending as uploading
+    setFiles(prev => prev.map(f => 
+      f.status === 'SUCCESS' ? f : { ...f, status: 'UPLOADING' }
+    ));
 
-      updatedFiles[i].status = 'UPLOADING';
-      setFiles([...updatedFiles]);
-
-      const result = await bulkUploadService.uploadFile(
-        updatedFiles[i].file,
-        hubType,
-        user.email,
-        isLocked
-      );
-
-      if (result.success) {
-        updatedFiles[i].status = 'SUCCESS';
+    await bulkUploadService.processBatch(
+      pendingFiles,
+      hubType,
+      user.email,
+      isLocked,
+      async (result) => {
         results.push(result);
-        onLogEvent?.('UPLOAD', `File ${updatedFiles[i].file.name} successfully pushed to ${hubType}`);
         
-        // Auto-add SHL Agents to Registry
-        if (hubType === 'SHL') {
-          // In a real system, we'd extract emails from the file content
-          // Simulating auto-add for an assumed agent email
-          const simulatedEmail = `agent_${Math.floor(Math.random()*1000)}@gmail.com`;
-          await accessService.autoAddAgent(simulatedEmail);
+        // Update individual file status in UI
+        setFiles(prev => prev.map(f => {
+          if (f.file === result.originalFile) {
+            return {
+              ...f,
+              status: result.success ? 'SUCCESS' : 'ERROR',
+              error: result.error
+            };
+          }
+          return f;
+        }));
+
+        if (result.success) {
+          onLogEvent?.('UPLOAD', `File ${result.originalFile?.name} successfully pushed to ${hubType}`);
+          
+          // Auto-add SHL Agents to Registry (Simulated)
+          if (hubType === 'SHL') {
+            const simulatedEmail = `agent_${Math.floor(Math.random()*1000)}@gmail.com`;
+            await accessService.autoAddAgent(simulatedEmail);
+          }
         }
-      } else {
-        updatedFiles[i].status = 'ERROR';
-        updatedFiles[i].error = result.error;
       }
-      setFiles([...updatedFiles]);
-    }
+    );
 
     setIsProcessing(false);
     onUploadComplete?.(results);
@@ -124,9 +129,9 @@ export const BulkUploader: React.FC<BulkUploaderProps> = ({ hubType, user, isLoc
               <button 
                 onClick={startUpload}
                 disabled={isProcessing || isLocked}
-                className="px-6 py-2 bg-orange-500 text-white rounded-xl text-xs font-bold shadow-lg shadow-orange-100 disabled:opacity-50 hover:bg-orange-600"
+                className="px-6 py-2 bg-orange-500 text-white rounded-xl text-xs font-bold shadow-lg shadow-orange-100 disabled:opacity-50 hover:bg-orange-600 transition-all"
               >
-                {isProcessing ? 'Processing...' : 'Push to Hub'}
+                {isProcessing ? 'Processing Batch...' : 'Push to Hub'}
               </button>
             </div>
           </div>
