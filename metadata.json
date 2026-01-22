@@ -1,0 +1,7 @@
+{
+  "name": "Copy of TP Skillence",
+  "description": "Enterprise agent enhancement platform for SHL analysis, specialized hubs (Language, Sales, Culture, Work Nature), and performance tracking.",
+  "requestFramePermissions": [
+    "microphone"
+  ]
+}
