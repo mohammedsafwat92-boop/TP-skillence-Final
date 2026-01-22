@@ -40,6 +40,13 @@ export interface UploadedFileRecord {
   status: 'ACTIVE' | 'ARCHIVED';
 }
 
+export interface AgentHistoryEntry {
+  date: string;
+  overallScore: number;
+  speaking: number;
+  grammar: number;
+}
+
 export interface Agent {
   testId: string;
   name: string;
@@ -53,6 +60,7 @@ export interface Agent {
   primaryOpportunity: string;
   recommendedPlan: string;
   assignedModules: string;
+  history?: AgentHistoryEntry[];
 }
 
 export interface DashboardMetrics {

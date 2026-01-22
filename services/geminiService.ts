@@ -91,3 +91,23 @@ export const getAITrainingCoachFeedback = async (agent: Agent): Promise<string> 
   });
   return response.text || 'Unable to generate coaching feedback at this time.';
 };
+
+// Generate a persona-based response for the training gym
+export const generateCustomerResponse = async (history: {role: 'user' | 'model', text: string}[], context: string): Promise<string> => {
+  const response = await ai.models.generateContent({
+    model: 'gemma-3-27b-it',
+    contents: [
+      { role: 'user', parts: [{ text: `Context: You are roleplaying as a customer in the following scenario: ${context}. Keep your responses short (under 30 words), conversational, and slightly challenging.` }] },
+      ...history.map(h => ({
+        role: h.role,
+        parts: [{ text: h.text }]
+      }))
+    ],
+    config: {
+      temperature: 0.9,
+      maxOutputTokens: 60,
+    }
+  });
+  
+  return response.text || "...";
+};
