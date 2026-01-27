@@ -1,6 +1,6 @@
 
 export type Role = 'Admin' | 'Coach' | 'Agent';
-export type HubType = 'SHL' | 'Language' | 'Sales' | 'Culture' | 'WorkNature' | 'Coach' | 'Agent' | 'CourseManager' | 'AccessManagement';
+export type HubType = 'SHL' | 'Language' | 'Sales' | 'Culture' | 'WorkNature' | 'Coach' | 'Agent' | 'CourseManager' | 'AccessManagement' | 'Simulation';
 export type TabType = 'Overview' | 'Library' | 'Assign' | 'Progress' | 'Upload' | 'Export' | 'Users' | 'Bulk';
 export type AccessStatus = 'ACTIVE' | 'SUSPENDED' | 'REMOVED';
 export type AccessSource = 'MANUAL' | 'SHL_AUTO' | 'BOOTSTRAP';

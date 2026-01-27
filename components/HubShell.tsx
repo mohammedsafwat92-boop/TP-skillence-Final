@@ -13,8 +13,8 @@ const TABS: TabType[] = ['Overview', 'Library', 'Assign', 'Progress', 'Upload', 
 
 export const HubShell: React.FC<HubShellProps> = ({ title, activeTab, onTabChange, children }) => {
   return (
-    <div className="bg-white rounded-3xl shadow-xl overflow-hidden border border-slate-100 min-h-[600px] flex flex-col">
-      <div className="bg-slate-900 px-4 md:px-8 py-6 border-b border-slate-800 flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+    <div className="bg-white rounded-3xl shadow-xl overflow-hidden border border-slate-100 w-full h-full flex flex-col">
+      <div className="bg-slate-900 px-4 md:px-8 py-6 border-b border-slate-800 flex flex-col md:flex-row justify-between items-start md:items-center gap-4 shrink-0">
         <h2 className="text-xl md:text-2xl font-bold text-white">{title}</h2>
         <div className="flex gap-2">
            <div className="px-3 py-1 bg-orange-500/10 text-orange-500 text-xs font-bold rounded-full border border-orange-500/20 uppercase tracking-widest">
@@ -23,7 +23,7 @@ export const HubShell: React.FC<HubShellProps> = ({ title, activeTab, onTabChang
         </div>
       </div>
       
-      <div className="border-b border-slate-100 flex overflow-x-auto no-scrollbar bg-slate-50/50 w-full">
+      <div className="border-b border-slate-100 flex overflow-x-auto no-scrollbar bg-slate-50/50 w-full shrink-0">
         {TABS.map(tab => (
           <button
             key={tab}
@@ -39,7 +39,7 @@ export const HubShell: React.FC<HubShellProps> = ({ title, activeTab, onTabChang
         ))}
       </div>
 
-      <div className="flex-1 p-4 md:p-8 overflow-y-auto">
+      <div className="flex-1 p-4 md:p-8 overflow-y-auto w-full">
         {children}
       </div>
     </div>

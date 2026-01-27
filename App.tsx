@@ -3,7 +3,7 @@ import React, { useState, useCallback, useEffect } from 'react';
 import { 
   LayoutDashboard, Target, Languages, Globe, Briefcase, Users, Settings, 
   LogOut, Bell, Search, Lock, Unlock, ChevronRight, ShieldCheck, 
-  ShieldAlert, History, Key, LogIn, Menu, X
+  ShieldAlert, History, Key, LogIn, Menu, X, MessageSquare
 } from 'lucide-react';
 import { HubType, TabType, User, AuditEntry, AccessProfile, Role } from './types';
 import { HubShell } from './components/HubShell';
@@ -12,6 +12,7 @@ import { BulkUploader } from './components/BulkUploader';
 import { accessService } from './services/AccessService';
 import { RequireRole } from './components/RequireRole';
 import { AccessManagement } from './components/AccessManagement';
+import SimulationHub from './components/SimulationHub';
 import { COUNTRIES } from './constants';
 
 const App: React.FC = () => {
@@ -90,7 +91,7 @@ const App: React.FC = () => {
   // Login Screen
   if (!profile) {
     return (
-      <div className="min-h-screen bg-slate-50 flex items-center justify-center p-6">
+      <div className="min-h-screen bg-slate-50 flex items-center justify-center p-6 w-full">
         <div className="w-full max-w-md bg-white rounded-3xl shadow-xl p-10 border border-slate-100">
            <div className="mb-10 text-center">
              <h1 className="text-3xl font-black italic tracking-tighter mb-2">
@@ -155,7 +156,7 @@ const App: React.FC = () => {
       >
         <Icon className={`w-5 h-5 ${activeHub === id ? 'text-white' : 'text-slate-400 group-hover:text-slate-600'}`} />
         <span className="font-bold text-sm tracking-tight">{label}</span>
-        {isScopeLocked(id) && id !== 'Agent' && id !== 'Coach' && id !== 'AccessManagement' && (
+        {isScopeLocked(id) && id !== 'Agent' && id !== 'Coach' && id !== 'AccessManagement' && id !== 'Simulation' && (
           <Lock className="w-3.5 h-3.5 ml-auto opacity-30" />
         )}
       </button>
@@ -163,7 +164,7 @@ const App: React.FC = () => {
   };
 
   return (
-    <div className="flex h-screen bg-slate-50 font-sans text-slate-900 overflow-hidden">
+    <div className="flex h-screen w-full bg-slate-50 font-sans text-slate-900 overflow-hidden">
       {/* Mobile Overlay */}
       {isMobileMenuOpen && (
         <div 
@@ -197,6 +198,7 @@ const App: React.FC = () => {
         <nav className="flex-1 space-y-1.5 overflow-y-auto no-scrollbar">
           <p className="px-4 text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] mb-3">Intelligence</p>
           <NavItem id="SHL" label="SHL Engine" icon={Target} roles={['Admin', 'Coach']} />
+          <NavItem id="Simulation" label="Simulation Hub" icon={MessageSquare} roles={['Admin', 'Coach', 'Agent']} />
           
           <p className="px-4 text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] mt-8 mb-3">Enhancement Hubs</p>
           <NavItem id="Language" label="Language Hub" icon={Languages} roles={['Admin', 'Coach']} />
@@ -237,7 +239,7 @@ const App: React.FC = () => {
       </aside>
 
       {/* Main Content Area */}
-      <main className="flex-1 overflow-y-auto relative no-scrollbar flex flex-col w-full">
+      <main className="flex-1 overflow-y-auto relative no-scrollbar flex flex-col w-full h-full">
         {/* Global Safe Mode Banner */}
         <div className={`sticky top-0 z-40 px-4 md:px-10 py-2 flex items-center justify-between transition-colors duration-300 ${unlockedScope ? 'bg-orange-500 text-white' : 'bg-slate-900 text-slate-400'}`}>
           <div className="flex items-center gap-3 text-[10px] font-black uppercase tracking-widest">
@@ -255,7 +257,7 @@ const App: React.FC = () => {
         </div>
 
         {/* Header */}
-        <header className="bg-slate-50/80 backdrop-blur-md px-4 md:px-10 py-4 md:py-6 flex justify-between items-center z-30 border-b border-slate-100 sticky top-8 md:top-8">
+        <header className="bg-slate-50/80 backdrop-blur-md px-4 md:px-10 py-4 md:py-6 flex justify-between items-center z-30 border-b border-slate-100 sticky top-8 md:top-8 w-full">
           <div className="flex items-center gap-4">
              <button 
                onClick={() => setIsMobileMenuOpen(true)}
@@ -290,7 +292,7 @@ const App: React.FC = () => {
           </div>
         </header>
 
-        <div className="px-4 md:px-10 py-6 md:py-10 relative flex-1">
+        <div className="px-4 md:px-10 py-6 md:py-10 relative flex-1 flex flex-col w-full h-full">
           <HubShell 
             title={activeHub === 'SHL' ? "SHL Intelligence Engine" : activeHub === 'AccessManagement' ? "Security & Registry" : `${activeHub} Enhancement`}
             activeTab={activeTab}
@@ -304,6 +306,8 @@ const App: React.FC = () => {
                   onLogEvent={(action, details) => createAuditEntry(action as AuditEntry['action'], activeHub, details)} 
                 />
               </RequireRole>
+            ) : activeHub === 'Simulation' ? (
+              <SimulationHub />
             ) : activeTab === 'Upload' ? (
               <RequireRole userRole={profile.role} allowed={['Admin']}>
                 <BulkUploader 
@@ -333,13 +337,13 @@ const HubContent: React.FC<{ hub: HubType, tab: TabType, logs: AuditEntry[] }> =
   // Shared Overview for SHL
   if (hub === 'SHL' && tab === 'Overview') {
     return (
-      <div className="space-y-8 animate-in fade-in duration-500">
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 md:gap-6">
+      <div className="space-y-8 animate-in fade-in duration-500 w-full">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 md:gap-6 w-full">
           <StatCard label="Total Ingested" value="1,240" trend="+12%" color="blue" />
           <StatCard label="Avg Confidence" value="94.2%" trend="+2%" color="emerald" />
           <StatCard label="Critical Risk" value="42" trend="-5%" color="rose" />
         </div>
-        <div className="bg-slate-50 rounded-2xl p-4 md:p-8 border border-slate-100 h-64 flex items-center justify-center text-slate-300 font-bold border-dashed text-center">
+        <div className="bg-slate-50 rounded-2xl p-4 md:p-8 border border-slate-100 h-64 flex items-center justify-center text-slate-300 font-bold border-dashed text-center w-full">
           Interactive SHL Heatmap Visualization (Loading...)
         </div>
       </div>
@@ -349,12 +353,12 @@ const HubContent: React.FC<{ hub: HubType, tab: TabType, logs: AuditEntry[] }> =
   // Progress Tab showing Audit Logs
   if (tab === 'Progress') {
     return (
-      <div className="space-y-4">
+      <div className="space-y-4 w-full">
         <div className="flex items-center gap-2 mb-6">
           <ShieldAlert className="w-5 h-5 text-orange-500" />
           <h3 className="text-lg font-bold text-slate-800">Security & Modification Audit Log</h3>
         </div>
-        <div className="bg-white border border-slate-100 rounded-2xl overflow-hidden shadow-sm">
+        <div className="bg-white border border-slate-100 rounded-2xl overflow-hidden shadow-sm w-full">
           <div className="overflow-x-auto w-full">
             <table className="w-full text-left text-sm min-w-[600px]">
               <thead className="bg-slate-50 text-[10px] font-black uppercase tracking-widest text-slate-400 border-b">
@@ -402,7 +406,7 @@ const HubContent: React.FC<{ hub: HubType, tab: TabType, logs: AuditEntry[] }> =
   // Specialized Culture Hub
   if (hub === 'Culture' && tab === 'Overview') {
     return (
-      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4 animate-in slide-in-from-bottom-4 duration-500">
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4 animate-in slide-in-from-bottom-4 duration-500 w-full">
         {COUNTRIES.map(c => (
           <div key={c.name} className="group bg-white border border-slate-200 p-4 rounded-2xl hover:border-orange-500 hover:shadow-xl hover:shadow-orange-500/10 transition-all cursor-pointer">
              <div className="text-4xl mb-2 grayscale group-hover:grayscale-0 transition-all">{c.flag}</div>
@@ -416,7 +420,7 @@ const HubContent: React.FC<{ hub: HubType, tab: TabType, logs: AuditEntry[] }> =
 
   // Simple placeholder for other views
   return (
-    <div className="flex flex-col items-center justify-center h-full py-10 md:py-20 text-center space-y-4">
+    <div className="flex flex-col items-center justify-center h-full py-10 md:py-20 text-center space-y-4 w-full">
        <div className="w-16 h-16 md:w-20 md:h-20 bg-slate-50 rounded-full flex items-center justify-center">
           <Target className="w-8 h-8 md:w-10 md:h-10 text-slate-200" />
        </div>
