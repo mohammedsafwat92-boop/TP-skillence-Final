@@ -1,57 +1,56 @@
 
-import React, { useMemo } from 'react';
+import React, { useMemo, lazy, Suspense } from 'react';
 import { 
-  BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, 
-  Radar, RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis,
-  PieChart, Pie, Cell, Legend
+  BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer
 } from 'recharts';
-import { Agent, DashboardMetrics, AccessProfile } from '../types';
-import { Users, Target, Award, Brain, TrendingUp, AlertCircle, Briefcase, ChevronRight } from 'lucide-react';
+import { Agent, AccessProfile } from '../types';
+import { Target, Brain, TrendingUp, AlertCircle, ChevronRight, Loader2 } from 'lucide-react';
 import TeamInsights from './TeamInsights';
 import { dataStore } from '../services/DataStore';
 import AgentList from './AgentList';
-import AgentDetail from './AgentDetail';
+
+// Lazy Load Heavy Detail View
+const AgentDetail = lazy(() => import('./AgentDetail'));
 
 interface Props {
   userProfile: AccessProfile;
 }
 
-const COLORS = ['#6366f1', '#8b5cf6', '#ec4899', '#f43f5e', '#f59e0b', '#10b981'];
-
 const Dashboard: React.FC<Props> = ({ userProfile }) => {
-  // Determine View Data based on Role
+  // Memoize View Data based on Role
   const { agents, classes, viewType } = useMemo(() => {
     if (userProfile.role === 'Admin') {
       return { 
         agents: dataStore.getAllAgents(), 
         classes: dataStore.getAllClasses(),
-        viewType: 'ADMIN' 
+        viewType: 'ADMIN' as const 
       };
     } else if (userProfile.role === 'Coach') {
       return { 
         agents: dataStore.getAgentsByCoach(userProfile.email), 
         classes: [],
-        viewType: 'COACH' 
+        viewType: 'COACH' as const 
       };
     } else {
-      // Agent View
       const me = dataStore.getAgentByEmail(userProfile.email);
       return { 
         agents: me ? [me] : [], 
         classes: [],
-        viewType: 'AGENT' 
+        viewType: 'AGENT' as const 
       };
     }
-  }, [userProfile]);
+  }, [userProfile.role, userProfile.email]);
 
   const [selectedAgent, setSelectedAgent] = React.useState<Agent | null>(null);
 
-  // If drilling down to specific agent
   if (selectedAgent) {
-    return <AgentDetail agent={selectedAgent} onBack={() => setSelectedAgent(null)} />;
+    return (
+      <Suspense fallback={<div className="flex justify-center p-20"><Loader2 className="animate-spin" /></div>}>
+        <AgentDetail agent={selectedAgent} onBack={() => setSelectedAgent(null)} />
+      </Suspense>
+    );
   }
 
-  // --- AGENT VIEW ---
   if (viewType === 'AGENT') {
     const me = agents[0];
     if (!me) return <div className="p-8">Agent profile not found in DataStore.</div>;
@@ -70,7 +69,6 @@ const Dashboard: React.FC<Props> = ({ userProfile }) => {
           </div>
         </div>
 
-        {/* Action Recommendation Widget */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm">
              <div className="flex items-center gap-3 mb-4">
@@ -102,14 +100,13 @@ const Dashboard: React.FC<Props> = ({ userProfile }) => {
           </div>
         </div>
 
-        {/* Reusing Detailed View components inline for Agent Dashboard */}
-        <AgentDetail agent={me} onBack={() => {}} /> 
-        <div className="hidden"><AgentList agents={[]} onSelectAgent={() => {}} /></div> {/* Hidden to satisfy imports if needed, but we use Detail directly */}
+        <Suspense fallback={<Loader2 className="animate-spin mx-auto" />}>
+          <AgentDetail agent={me} onBack={() => {}} /> 
+        </Suspense>
       </div>
     );
   }
 
-  // --- COACH VIEW ---
   if (viewType === 'COACH') {
     return (
       <div className="space-y-6">
@@ -121,7 +118,7 @@ const Dashboard: React.FC<Props> = ({ userProfile }) => {
         <TeamInsights agents={agents} />
         
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-           <StatCard icon={<Brain className="w-6 h-6 text-indigo-600"/>} label="Team Avg" value={`${Math.round(agents.reduce((a,b)=>a+b.overallAvg,0)/agents.length)}%`} color="bg-indigo-50" />
+           <StatCard icon={<Brain className="w-6 h-6 text-indigo-600"/>} label="Team Avg" value={`${agents.length > 0 ? Math.round(agents.reduce((a,b)=>a+b.overallAvg,0)/agents.length) : 0}%`} color="bg-indigo-50" />
            <StatCard icon={<AlertCircle className="w-6 h-6 text-rose-600"/>} label="Critical Focus" value={agents.filter(a=>a.overallAvg<60).length} color="bg-rose-50" />
            <StatCard icon={<CheckCircle2 className="w-6 h-6 text-emerald-600"/>} label="Top Performers" value={agents.filter(a=>a.overallAvg>85).length} color="bg-emerald-50" />
         </div>
@@ -131,24 +128,12 @@ const Dashboard: React.FC<Props> = ({ userProfile }) => {
     );
   }
 
-  // --- ADMIN VIEW ---
-  // Default Analytics View (Modified for Admin Org view)
-  const metrics = {
-      totalAgents: agents.length,
-      avgWriting: agents.reduce((acc, a) => acc + a.writing, 0) / agents.length,
-      avgSpeaking: agents.reduce((acc, a) => acc + a.speaking, 0) / agents.length,
-      avgListening: agents.reduce((acc, a) => acc + a.listening, 0) / agents.length,
-      avgGrammar: agents.reduce((acc, a) => acc + a.grammar, 0) / agents.length,
-      avgAnalytical: agents.reduce((acc, a) => acc + a.analytical, 0) / agents.length,
-      avgOverall: agents.reduce((acc, a) => acc + a.overallAvg, 0) / agents.length,
-  };
-
-  // Prepare Class Performance Data
-  const classData = classes.map(c => {
+  // Memoize Class Performance Data for Admin
+  const classData = useMemo(() => classes.map(c => {
     const classAgents = agents.filter(a => a.classId === c.id);
     const avg = classAgents.length ? classAgents.reduce((sum, a) => sum + a.overallAvg, 0) / classAgents.length : 0;
     return { name: c.name, score: Math.round(avg), agents: classAgents.length };
-  });
+  }), [classes, agents]);
 
   return (
     <div className="space-y-6">
@@ -157,7 +142,7 @@ const Dashboard: React.FC<Props> = ({ userProfile }) => {
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
            <div className="h-64">
               <h3 className="text-sm font-bold text-slate-400 uppercase mb-4">Performance by Class</h3>
-              <ResponsiveContainer width="100%" height="100%">
+              <ResponsiveContainer width="100%" height="100%" minHeight={200}>
                 <BarChart data={classData}>
                   <CartesianGrid strokeDasharray="3 3" vertical={false} />
                   <XAxis dataKey="name" axisLine={false} tickLine={false} />
@@ -171,7 +156,7 @@ const Dashboard: React.FC<Props> = ({ userProfile }) => {
            <div>
               <h3 className="text-sm font-bold text-slate-400 uppercase mb-4">Coach Leaderboard</h3>
               <div className="space-y-4">
-                 {classData.sort((a,b) => b.score - a.score).map((c, i) => (
+                 {[...classData].sort((a,b) => b.score - a.score).map((c, i) => (
                    <div key={c.name} className="flex items-center gap-4 p-4 bg-slate-50 rounded-xl hover:bg-slate-100 transition-colors cursor-pointer">
                       <div className="w-8 h-8 rounded-full bg-white shadow-sm flex items-center justify-center font-bold text-slate-700">
                         {i + 1}
@@ -211,9 +196,8 @@ const StatCard: React.FC<{ icon: React.ReactNode, label: string, value: string |
   </div>
 );
 
-// Helper for imports
 const CheckCircle2: React.FC<{ className?: string }> = ({ className }) => (
   <svg className={className} xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><path d="m9 12 2 2 4-4"/></svg>
 );
 
-export default Dashboard;
+export default React.memo(Dashboard);

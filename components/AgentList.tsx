@@ -1,7 +1,7 @@
 
 import React, { useState, useMemo } from 'react';
 import { Agent } from '../types';
-import { Search, Filter, ChevronRight, Eye } from 'lucide-react';
+import { Search, Filter, Eye } from 'lucide-react';
 
 interface Props {
   agents: Agent[];
@@ -21,7 +21,7 @@ const AgentList: React.FC<Props> = ({ agents, onSelectAgent }) => {
     });
   }, [agents, searchTerm, cefrFilter]);
 
-  const cefrLevels = ['All', ...Array.from(new Set(agents.map(a => a.cefr)))];
+  const cefrLevels = useMemo(() => ['All', ...Array.from(new Set(agents.map(a => a.cefr)))], [agents]);
 
   return (
     <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
@@ -127,4 +127,4 @@ const AgentList: React.FC<Props> = ({ agents, onSelectAgent }) => {
   );
 };
 
-export default AgentList;
+export default React.memo(AgentList);

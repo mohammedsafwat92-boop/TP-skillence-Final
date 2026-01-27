@@ -1,7 +1,7 @@
 
 import React, { useMemo, useState } from 'react';
 import { Agent } from '../types';
-import { Brain, TrendingUp, AlertCircle, Users, CheckSquare, X } from 'lucide-react';
+import { Brain, TrendingUp, AlertCircle, Users, X } from 'lucide-react';
 
 interface Props {
   agents: Agent[];
@@ -178,4 +178,4 @@ const TeamInsights: React.FC<Props> = ({ agents }) => {
   );
 };
 
-export default TeamInsights;
+export default React.memo(TeamInsights);

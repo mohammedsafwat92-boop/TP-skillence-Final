@@ -1,21 +1,30 @@
 
-import React, { useState, useCallback, useEffect } from 'react';
+import React, { useState, useCallback, lazy, Suspense } from 'react';
 import { 
   LayoutDashboard, Target, Languages, Globe, Briefcase, Users, Settings, 
   LogOut, Bell, Search, Lock, Unlock, ChevronRight, ShieldCheck, 
-  ShieldAlert, History, Key, LogIn, Menu, X, MessageSquare
+  ShieldAlert, History, Key, LogIn, Menu, X, MessageSquare, Loader2
 } from 'lucide-react';
-import { HubType, TabType, User, AuditEntry, AccessProfile, Role } from './types';
+import { HubType, TabType, AuditEntry, AccessProfile, Role } from './types';
 import { HubShell } from './components/HubShell';
 import { LockOverlay } from './components/LockOverlay';
-import { BulkUploader } from './components/BulkUploader';
 import { accessService } from './services/AccessService';
 import { RequireRole } from './components/RequireRole';
 import { AccessManagement } from './components/AccessManagement';
-import SimulationHub from './components/SimulationHub';
-import { LanguageHub } from './components/LanguageHub/LanguageHub';
 import { COUNTRIES } from './constants';
-import Dashboard from './components/Dashboard';
+
+// Lazy Load Heavy Modules
+const SimulationHub = lazy(() => import('./components/SimulationHub'));
+const LanguageHub = lazy(() => import('./components/LanguageHub/LanguageHub').then(m => ({ default: m.LanguageHub })));
+const Dashboard = lazy(() => import('./components/Dashboard'));
+const BulkUploader = lazy(() => import('./components/BulkUploader').then(m => ({ default: m.BulkUploader })));
+
+const LoadingSpinner = () => (
+  <div className="flex flex-col items-center justify-center h-full p-20 space-y-4 animate-in fade-in">
+    <Loader2 className="w-12 h-12 text-orange-500 animate-spin" />
+    <p className="text-slate-400 font-bold uppercase text-[10px] tracking-widest">Initialising Module...</p>
+  </div>
+);
 
 const App: React.FC = () => {
   const [profile, setProfile] = useState<AccessProfile | null>(null);
@@ -45,16 +54,14 @@ const App: React.FC = () => {
     setIsLoading(true);
     setLoginError('');
     
-    // accessService.getProfile now performs the Admin allowlist bypass and auto-heal
     const p = await accessService.getProfile(loginEmail);
     
     if (p && p.status === 'ACTIVE') {
       setProfile(p);
       createAuditEntry('LOGIN', 'Auth', `User ${p.email} authenticated as ${p.role}`);
       
-      // Routing logic by role
       if (p.role === 'Admin') {
-        setActiveHub('SHL'); // Land Admins on SHL Engine (Admin Dashboard)
+        setActiveHub('SHL'); 
         setActiveTab('Overview');
       } else if (p.role === 'Coach') {
         setActiveHub('Coach');
@@ -64,11 +71,9 @@ const App: React.FC = () => {
         setActiveTab('Overview');
       }
     } else if (p && p.status !== 'ACTIVE') {
-      // Non-admins: Show status error
       setLoginError(`Access Denied: Account status is ${p.status}`);
       createAuditEntry('LOGIN_DENIED', 'Auth', `Login attempted for ${loginEmail} (Status: ${p.status})`);
     } else {
-      // Non-admins: Show missing error
       setLoginError('Access Denied: Gmail not found in registry.');
       createAuditEntry('LOGIN_DENIED', 'Auth', `Login attempted for unknown user ${loginEmail}`);
     }
@@ -90,7 +95,6 @@ const App: React.FC = () => {
 
   const isScopeLocked = (hub: HubType) => unlockedScope !== hub && unlockedScope !== 'All';
 
-  // Login Screen
   if (!profile) {
     return (
       <div className="min-h-screen bg-slate-50 flex items-center justify-center p-6 w-full">
@@ -148,7 +152,7 @@ const App: React.FC = () => {
         onClick={() => { 
           setActiveHub(id); 
           setActiveTab('Overview'); 
-          setIsMobileMenuOpen(false); // Close menu on selection
+          setIsMobileMenuOpen(false); 
         }}
         className={`w-full flex items-center gap-3 px-4 py-3.5 rounded-2xl transition-all duration-200 group ${
           activeHub === id 
@@ -167,7 +171,6 @@ const App: React.FC = () => {
 
   return (
     <div className="flex h-screen w-full bg-slate-50 font-sans text-slate-900 overflow-hidden">
-      {/* Mobile Overlay */}
       {isMobileMenuOpen && (
         <div 
           className="fixed inset-0 bg-slate-900/50 z-40 md:hidden backdrop-blur-sm transition-opacity"
@@ -175,7 +178,6 @@ const App: React.FC = () => {
         />
       )}
 
-      {/* Sidebar */}
       <aside 
         className={`fixed md:static inset-y-0 left-0 z-50 w-72 bg-white border-r border-slate-200 flex flex-col p-6 transition-transform duration-300 ease-in-out ${
           isMobileMenuOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0'
@@ -240,9 +242,7 @@ const App: React.FC = () => {
         </div>
       </aside>
 
-      {/* Main Content Area */}
       <main className="flex-1 overflow-y-auto relative no-scrollbar flex flex-col w-full h-full">
-        {/* Global Safe Mode Banner */}
         <div className={`sticky top-0 z-40 px-4 md:px-10 py-2 flex items-center justify-between transition-colors duration-300 ${unlockedScope ? 'bg-orange-500 text-white' : 'bg-slate-900 text-slate-400'}`}>
           <div className="flex items-center gap-3 text-[10px] font-black uppercase tracking-widest">
             {unlockedScope ? <Unlock className="w-3 h-3" /> : <Lock className="w-3 h-3" />}
@@ -258,7 +258,6 @@ const App: React.FC = () => {
           )}
         </div>
 
-        {/* Header */}
         <header className="bg-slate-50/80 backdrop-blur-md px-4 md:px-10 py-4 md:py-6 flex justify-between items-center z-30 border-b border-slate-100 sticky top-8 md:top-8 w-full">
           <div className="flex items-center gap-4">
              <button 
@@ -300,32 +299,34 @@ const App: React.FC = () => {
             activeTab={activeTab}
             onTabChange={setActiveTab}
           >
-            {activeHub === 'AccessManagement' ? (
-              <RequireRole userRole={profile.role} allowed={['Admin']}>
-                <AccessManagement 
-                  currentUserEmail={profile.email} 
-                  isLocked={isScopeLocked(activeHub)} 
-                  onLogEvent={(action, details) => createAuditEntry(action as AuditEntry['action'], activeHub, details)} 
-                />
-              </RequireRole>
-            ) : activeHub === 'Simulation' ? (
-              <SimulationHub currentUser={profile} />
-            ) : activeHub === 'Language' && activeTab === 'Overview' ? (
-              <LanguageHub currentUser={profile} />
-            ) : activeTab === 'Upload' ? (
-              <RequireRole userRole={profile.role} allowed={['Admin']}>
-                <BulkUploader 
-                  hubType={activeHub} 
-                  user={profile} 
-                  isLocked={isScopeLocked(activeHub)}
-                  onLogEvent={(action, details) => createAuditEntry(action as AuditEntry['action'], activeHub, details)}
-                />
-              </RequireRole>
-            ) : activeTab === 'Assign' && isScopeLocked(activeHub) ? (
-              <LockOverlay currentScope={activeHub} onUnlock={handleUnlock} />
-            ) : (
-              <HubContent hub={activeHub} tab={activeTab} logs={auditLogs} user={profile} />
-            )}
+            <Suspense fallback={<LoadingSpinner />}>
+              {activeHub === 'AccessManagement' ? (
+                <RequireRole userRole={profile.role} allowed={['Admin']}>
+                  <AccessManagement 
+                    currentUserEmail={profile.email} 
+                    isLocked={isScopeLocked(activeHub)} 
+                    onLogEvent={(action, details) => createAuditEntry(action as AuditEntry['action'], activeHub, details)} 
+                  />
+                </RequireRole>
+              ) : activeHub === 'Simulation' ? (
+                <SimulationHub currentUser={profile} />
+              ) : activeHub === 'Language' && activeTab === 'Overview' ? (
+                <LanguageHub currentUser={profile} />
+              ) : activeTab === 'Upload' ? (
+                <RequireRole userRole={profile.role} allowed={['Admin']}>
+                  <BulkUploader 
+                    hubType={activeHub} 
+                    user={profile} 
+                    isLocked={isScopeLocked(activeHub)}
+                    onLogEvent={(action, details) => createAuditEntry(action as AuditEntry['action'], activeHub, details)}
+                  />
+                </RequireRole>
+              ) : activeTab === 'Assign' && isScopeLocked(activeHub) ? (
+                <LockOverlay currentScope={activeHub} onUnlock={handleUnlock} />
+              ) : (
+                <HubContent hub={activeHub} tab={activeTab} logs={auditLogs} user={profile} />
+              )}
+            </Suspense>
           </HubShell>
         </div>
       </main>
@@ -333,13 +334,7 @@ const App: React.FC = () => {
   );
 };
 
-const Loader2: React.FC<{ className?: string }> = ({ className }) => (
-  <svg className={className} xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 12a9 9 0 1 1-6.219-8.56"/></svg>
-);
-
 const HubContent: React.FC<{ hub: HubType, tab: TabType, logs: AuditEntry[], user: AccessProfile }> = ({ hub, tab, logs, user }) => {
-  
-  // Dynamic Dashboard Routing based on Hub and Role
   if (hub === 'SHL' && tab === 'Overview') {
     return <Dashboard userProfile={user} />;
   }
@@ -352,7 +347,6 @@ const HubContent: React.FC<{ hub: HubType, tab: TabType, logs: AuditEntry[], use
      return <Dashboard userProfile={user} />;
   }
 
-  // Progress Tab showing Audit Logs
   if (tab === 'Progress') {
     return (
       <div className="space-y-4 w-full">
@@ -405,7 +399,6 @@ const HubContent: React.FC<{ hub: HubType, tab: TabType, logs: AuditEntry[], use
     );
   }
 
-  // Specialized Culture Hub
   if (hub === 'Culture' && tab === 'Overview') {
     return (
       <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4 animate-in slide-in-from-bottom-4 duration-500 w-full">
@@ -420,7 +413,6 @@ const HubContent: React.FC<{ hub: HubType, tab: TabType, logs: AuditEntry[], use
     );
   }
 
-  // Simple placeholder for other views
   return (
     <div className="flex flex-col items-center justify-center h-full py-10 md:py-20 text-center space-y-4 w-full">
        <div className="w-16 h-16 md:w-20 md:h-20 bg-slate-50 rounded-full flex items-center justify-center">
@@ -433,18 +425,6 @@ const HubContent: React.FC<{ hub: HubType, tab: TabType, logs: AuditEntry[], use
        <button className="px-8 py-3 bg-slate-900 text-white rounded-xl font-bold text-sm hover:scale-105 transition-transform active:scale-95 shadow-xl shadow-slate-200">
           Initialize Data Fetch
        </button>
-    </div>
-  );
-};
-
-const StatCard = ({ label, value, trend, color }: any) => {
-  return (
-    <div className="bg-white border border-slate-100 p-6 rounded-3xl shadow-sm hover:shadow-md transition-shadow">
-      <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">{label}</p>
-      <div className="flex items-end justify-between">
-        <h4 className="text-2xl md:text-3xl font-black text-slate-900">{value}</h4>
-        <span className="text-xs font-bold text-emerald-500 mb-1">{trend}</span>
-      </div>
     </div>
   );
 };

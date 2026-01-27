@@ -1,7 +1,7 @@
 
 import React, { useState, useMemo } from 'react';
 import { Agent, AgentHistoryEntry } from '../types';
-import { ArrowLeft, BrainCircuit, FileText, CheckCircle, Clock, Map, TrendingUp, Dumbbell, ToggleLeft, ToggleRight, LayoutDashboard, History } from 'lucide-react';
+import { ArrowLeft, BrainCircuit, Clock, Map, TrendingUp, Dumbbell, ToggleLeft, ToggleRight, LayoutDashboard, History } from 'lucide-react';
 import { 
   Radar, RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis, ResponsiveContainer,
   Tooltip, LineChart, Line, XAxis, YAxis, CartesianGrid, Legend
@@ -21,25 +21,23 @@ const AgentDetail: React.FC<Props> = ({ agent, onBack }) => {
   const [showBenchmark, setShowBenchmark] = useState(false);
   const [showGym, setShowGym] = useState(false);
 
-  // Task 1: Generate mock history if missing
   const historyData: AgentHistoryEntry[] = useMemo(() => {
     if (agent.history && agent.history.length > 0) return agent.history;
     
-    // Generate 3 months of mock data
     return [
       { date: '2023-10-01', overallScore: agent.overallAvg - 12, speaking: agent.speaking - 10, grammar: agent.grammar - 8 },
       { date: '2023-11-01', overallScore: agent.overallAvg - 5, speaking: agent.speaking - 4, grammar: agent.grammar - 3 },
       { date: '2023-12-01', overallScore: agent.overallAvg, speaking: agent.speaking, grammar: agent.grammar },
     ];
-  }, [agent]);
+  }, [agent.history, agent.overallAvg, agent.speaking, agent.grammar]);
 
-  const radarData = [
+  const radarData = useMemo(() => [
     { subject: 'Writing', A: agent.writing, benchmark: 90, fullMark: 100 },
     { subject: 'Speaking', A: agent.speaking, benchmark: 95, fullMark: 100 },
     { subject: 'Listening', A: agent.listening, benchmark: 92, fullMark: 100 },
     { subject: 'Grammar', A: agent.grammar, benchmark: 95, fullMark: 100 },
     { subject: 'Analytical', A: agent.analytical, benchmark: 88, fullMark: 100 },
-  ];
+  ], [agent]);
 
   const handleConsultAI = async () => {
     setAiLoading(true);
@@ -50,7 +48,6 @@ const AgentDetail: React.FC<Props> = ({ agent, onBack }) => {
 
   return (
     <div className="space-y-6">
-      {/* Sub-Navigation Header */}
       <div className="flex flex-col md:flex-row items-center justify-between gap-4 border-b border-slate-200 pb-4">
         <button 
           onClick={onBack}
@@ -83,7 +80,6 @@ const AgentDetail: React.FC<Props> = ({ agent, onBack }) => {
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Profile Card (Always Visible) */}
         <div className="lg:col-span-1 space-y-6">
           <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-200 text-center">
             <div className="w-24 h-24 rounded-full bg-gradient-to-br from-indigo-500 to-purple-600 mx-auto flex items-center justify-center text-white text-3xl font-bold shadow-lg mb-4">
@@ -137,13 +133,12 @@ const AgentDetail: React.FC<Props> = ({ agent, onBack }) => {
                 </button>
               </div>
               <div className="h-64 w-full">
-                <ResponsiveContainer width="100%" height="100%">
+                <ResponsiveContainer width="100%" height="100%" minHeight={200}>
                   <RadarChart cx="50%" cy="50%" outerRadius="80%" data={radarData}>
                     <PolarGrid />
                     <PolarAngleAxis dataKey="subject" tick={{ fontSize: 11 }} />
                     <PolarRadiusAxis angle={30} domain={[0, 100]} />
                     
-                    {/* Agent Data */}
                     <Radar
                       name={agent.name}
                       dataKey="A"
@@ -152,7 +147,6 @@ const AgentDetail: React.FC<Props> = ({ agent, onBack }) => {
                       fillOpacity={0.6}
                     />
 
-                    {/* Task 2: Benchmark Overlay */}
                     {showBenchmark && (
                       <Radar
                         name="Top Performer"
@@ -171,7 +165,6 @@ const AgentDetail: React.FC<Props> = ({ agent, onBack }) => {
           )}
         </div>
 
-        {/* Content Area (Dynamic based on Tab) */}
         <div className="lg:col-span-2 space-y-6">
           
           {activeTab === 'Overview' ? (
@@ -232,7 +225,6 @@ const AgentDetail: React.FC<Props> = ({ agent, onBack }) => {
               </div>
             </>
           ) : (
-            /* Task 1: History Tab */
             <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-200 animate-in slide-in-from-right-4 duration-300 h-full">
               <div className="flex items-center gap-3 mb-8">
                 <div className="p-2 bg-emerald-50 rounded-lg">
@@ -245,7 +237,7 @@ const AgentDetail: React.FC<Props> = ({ agent, onBack }) => {
               </div>
               
               <div className="h-80 w-full mb-8">
-                <ResponsiveContainer width="100%" height="100%">
+                <ResponsiveContainer width="100%" height="100%" minHeight={300}>
                   <LineChart data={historyData} margin={{ top: 5, right: 30, left: 20, bottom: 5 }}>
                     <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
                     <XAxis dataKey="date" tick={{ fontSize: 12, fill: '#64748b' }} />
@@ -295,4 +287,4 @@ const TargetIcon: React.FC<{ className?: string }> = ({ className }) => (
   </svg>
 );
 
-export default AgentDetail;
+export default React.memo(AgentDetail);
