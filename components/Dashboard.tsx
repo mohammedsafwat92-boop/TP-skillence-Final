@@ -5,163 +5,196 @@ import {
   Radar, RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis,
   PieChart, Pie, Cell, Legend
 } from 'recharts';
-import { Agent, DashboardMetrics } from '../types';
-import { Users, Target, Award, Brain } from 'lucide-react';
+import { Agent, DashboardMetrics, AccessProfile } from '../types';
+import { Users, Target, Award, Brain, TrendingUp, AlertCircle, Briefcase, ChevronRight } from 'lucide-react';
 import TeamInsights from './TeamInsights';
+import { dataStore } from '../services/DataStore';
+import AgentList from './AgentList';
+import AgentDetail from './AgentDetail';
 
 interface Props {
-  agents: Agent[];
+  userProfile: AccessProfile;
 }
 
 const COLORS = ['#6366f1', '#8b5cf6', '#ec4899', '#f43f5e', '#f59e0b', '#10b981'];
 
-const Dashboard: React.FC<Props> = ({ agents }) => {
-  const metrics = useMemo<DashboardMetrics>(() => {
-    const total = agents.length;
-    return {
-      totalAgents: total,
-      avgWriting: agents.reduce((acc, a) => acc + a.writing, 0) / total,
-      avgSpeaking: agents.reduce((acc, a) => acc + a.speaking, 0) / total,
-      avgListening: agents.reduce((acc, a) => acc + a.listening, 0) / total,
-      avgGrammar: agents.reduce((acc, a) => acc + a.grammar, 0) / total,
-      avgAnalytical: agents.reduce((acc, a) => acc + a.analytical, 0) / total,
-      avgOverall: agents.reduce((acc, a) => acc + a.overallAvg, 0) / total,
-    };
-  }, [agents]);
+const Dashboard: React.FC<Props> = ({ userProfile }) => {
+  // Determine View Data based on Role
+  const { agents, classes, viewType } = useMemo(() => {
+    if (userProfile.role === 'Admin') {
+      return { 
+        agents: dataStore.getAllAgents(), 
+        classes: dataStore.getAllClasses(),
+        viewType: 'ADMIN' 
+      };
+    } else if (userProfile.role === 'Coach') {
+      return { 
+        agents: dataStore.getAgentsByCoach(userProfile.email), 
+        classes: [],
+        viewType: 'COACH' 
+      };
+    } else {
+      // Agent View
+      const me = dataStore.getAgentByEmail(userProfile.email);
+      return { 
+        agents: me ? [me] : [], 
+        classes: [],
+        viewType: 'AGENT' 
+      };
+    }
+  }, [userProfile]);
 
-  const radarData = [
-    { subject: 'Writing', A: metrics.avgWriting, fullMark: 100 },
-    { subject: 'Speaking', A: metrics.avgSpeaking, fullMark: 100 },
-    { subject: 'Listening', A: metrics.avgListening, fullMark: 100 },
-    { subject: 'Grammar', A: metrics.avgGrammar, fullMark: 100 },
-    { subject: 'Analytical', A: metrics.avgAnalytical, fullMark: 100 },
-  ];
+  const [selectedAgent, setSelectedAgent] = React.useState<Agent | null>(null);
 
-  const cefrDistribution = useMemo(() => {
-    const counts: Record<string, number> = {};
-    agents.forEach(a => counts[a.cefr] = (counts[a.cefr] || 0) + 1);
-    return Object.entries(counts).map(([name, value]) => ({ name, value }));
-  }, [agents]);
+  // If drilling down to specific agent
+  if (selectedAgent) {
+    return <AgentDetail agent={selectedAgent} onBack={() => setSelectedAgent(null)} />;
+  }
 
-  const topPerformers = useMemo(() => {
-    return [...agents].sort((a, b) => b.overallAvg - a.overallAvg).slice(0, 5);
-  }, [agents]);
+  // --- AGENT VIEW ---
+  if (viewType === 'AGENT') {
+    const me = agents[0];
+    if (!me) return <div className="p-8">Agent profile not found in DataStore.</div>;
+
+    return (
+      <div className="space-y-6">
+        <div className="bg-slate-900 text-white p-8 rounded-3xl shadow-xl flex justify-between items-center">
+          <div>
+            <h2 className="text-3xl font-black mb-2">Welcome back, {me.name.split(' ')[0]}!</h2>
+            <p className="text-slate-400">Your current proficiency level is <span className="text-orange-500 font-bold">{me.cefr}</span>.</p>
+          </div>
+          <div className="hidden md:block">
+            <div className="w-16 h-16 rounded-full bg-orange-500 flex items-center justify-center text-2xl font-bold">
+              {me.overallAvg}%
+            </div>
+          </div>
+        </div>
+
+        {/* Action Recommendation Widget */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm">
+             <div className="flex items-center gap-3 mb-4">
+                <Target className="w-6 h-6 text-rose-500" />
+                <h3 className="font-bold text-lg text-slate-800">Next Recommended Action</h3>
+             </div>
+             <p className="text-slate-600 mb-6">
+               Your <b>{me.primaryOpportunity}</b> score has dipped slightly. We recommend running a targeted simulation.
+             </p>
+             <button className="w-full py-3 bg-rose-50 text-rose-600 font-bold rounded-xl hover:bg-rose-100 transition-colors flex items-center justify-center gap-2">
+               Start "Angry Customer" Sim <ChevronRight className="w-4 h-4" />
+             </button>
+          </div>
+
+          <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm">
+             <div className="flex items-center gap-3 mb-4">
+                <TrendingUp className="w-6 h-6 text-emerald-500" />
+                <h3 className="font-bold text-lg text-slate-800">Recent Progress</h3>
+             </div>
+             <div className="space-y-3">
+               {(me.history || []).slice(-3).reverse().map((h, i) => (
+                 <div key={i} className="flex justify-between items-center p-3 bg-slate-50 rounded-lg">
+                    <span className="text-xs font-mono text-slate-400">{h.date}</span>
+                    <span className="font-bold text-slate-700">{h.overallScore}% Overall</span>
+                 </div>
+               ))}
+               {(!me.history || me.history.length === 0) && <p className="text-slate-400 italic">No simulation history yet.</p>}
+             </div>
+          </div>
+        </div>
+
+        {/* Reusing Detailed View components inline for Agent Dashboard */}
+        <AgentDetail agent={me} onBack={() => {}} /> 
+        <div className="hidden"><AgentList agents={[]} onSelectAgent={() => {}} /></div> {/* Hidden to satisfy imports if needed, but we use Detail directly */}
+      </div>
+    );
+  }
+
+  // --- COACH VIEW ---
+  if (viewType === 'COACH') {
+    return (
+      <div className="space-y-6">
+        <div className="flex justify-between items-end mb-2">
+           <h2 className="text-2xl font-bold text-slate-800">My Team Roster</h2>
+           <p className="text-slate-400 font-medium">{agents.length} Agents Assigned</p>
+        </div>
+        
+        <TeamInsights agents={agents} />
+        
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+           <StatCard icon={<Brain className="w-6 h-6 text-indigo-600"/>} label="Team Avg" value={`${Math.round(agents.reduce((a,b)=>a+b.overallAvg,0)/agents.length)}%`} color="bg-indigo-50" />
+           <StatCard icon={<AlertCircle className="w-6 h-6 text-rose-600"/>} label="Critical Focus" value={agents.filter(a=>a.overallAvg<60).length} color="bg-rose-50" />
+           <StatCard icon={<CheckCircle2 className="w-6 h-6 text-emerald-600"/>} label="Top Performers" value={agents.filter(a=>a.overallAvg>85).length} color="bg-emerald-50" />
+        </div>
+
+        <AgentList agents={agents} onSelectAgent={setSelectedAgent} />
+      </div>
+    );
+  }
+
+  // --- ADMIN VIEW ---
+  // Default Analytics View (Modified for Admin Org view)
+  const metrics = {
+      totalAgents: agents.length,
+      avgWriting: agents.reduce((acc, a) => acc + a.writing, 0) / agents.length,
+      avgSpeaking: agents.reduce((acc, a) => acc + a.speaking, 0) / agents.length,
+      avgListening: agents.reduce((acc, a) => acc + a.listening, 0) / agents.length,
+      avgGrammar: agents.reduce((acc, a) => acc + a.grammar, 0) / agents.length,
+      avgAnalytical: agents.reduce((acc, a) => acc + a.analytical, 0) / agents.length,
+      avgOverall: agents.reduce((acc, a) => acc + a.overallAvg, 0) / agents.length,
+  };
+
+  // Prepare Class Performance Data
+  const classData = classes.map(c => {
+    const classAgents = agents.filter(a => a.classId === c.id);
+    const avg = classAgents.length ? classAgents.reduce((sum, a) => sum + a.overallAvg, 0) / classAgents.length : 0;
+    return { name: c.name, score: Math.round(avg), agents: classAgents.length };
+  });
 
   return (
     <div className="space-y-6">
-      {/* New Team Insights Section */}
-      <TeamInsights agents={agents} />
-
-      {/* Stat Cards - Responsive Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6">
-        <StatCard 
-          icon={<Users className="w-6 h-6 text-indigo-600" />}
-          label="Total Agents"
-          value={metrics.totalAgents}
-          color="bg-indigo-50"
-        />
-        <StatCard 
-          icon={<Target className="w-6 h-6 text-emerald-600" />}
-          label="Avg Performance"
-          value={`${metrics.avgOverall.toFixed(1)}%`}
-          color="bg-emerald-50"
-        />
-        <StatCard 
-          icon={<Award className="w-6 h-6 text-amber-600" />}
-          label="Highest Score"
-          value={`${Math.max(...agents.map(a => a.overallAvg))}%`}
-          color="bg-amber-50"
-        />
-        <StatCard 
-          icon={<Brain className="w-6 h-6 text-purple-600" />}
-          label="Avg Grammar"
-          value={`${metrics.avgGrammar.toFixed(1)}%`}
-          color="bg-purple-50"
-        />
-      </div>
-
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 md:gap-6">
-        {/* Proficiency Radar */}
-        <div className="bg-white p-4 md:p-6 rounded-xl shadow-sm border border-slate-200">
-          <h3 className="text-lg font-semibold text-slate-800 mb-4">Skill Proficiency Overview</h3>
-          <div className="h-64 md:h-80 w-full">
-            <ResponsiveContainer width="100%" height="100%">
-              <RadarChart cx="50%" cy="50%" outerRadius="70%" data={radarData}>
-                <PolarGrid stroke="#e2e8f0" />
-                <PolarAngleAxis dataKey="subject" tick={{ fill: '#64748b', fontSize: 12 }} />
-                <PolarRadiusAxis angle={30} domain={[0, 100]} />
-                <Radar
-                  name="Group Avg"
-                  dataKey="A"
-                  stroke="#6366f1"
-                  fill="#6366f1"
-                  fillOpacity={0.5}
-                />
-                <Tooltip />
-              </RadarChart>
-            </ResponsiveContainer>
-          </div>
-        </div>
-
-        {/* CEFR Distribution */}
-        <div className="bg-white p-4 md:p-6 rounded-xl shadow-sm border border-slate-200">
-          <h3 className="text-lg font-semibold text-slate-800 mb-4">CEFR Distribution</h3>
-          <div className="h-64 md:h-80 w-full">
-            <ResponsiveContainer width="100%" height="100%">
-              <PieChart>
-                <Pie
-                  data={cefrDistribution}
-                  cx="50%"
-                  cy="50%"
-                  innerRadius={60}
-                  outerRadius={90}
-                  fill="#8884d8"
-                  paddingAngle={5}
-                  dataKey="value"
-                  label
-                >
-                  {cefrDistribution.map((entry, index) => (
-                    <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-                  ))}
-                </Pie>
-                <Tooltip />
-                <Legend />
-              </PieChart>
-            </ResponsiveContainer>
-          </div>
+      <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm">
+        <h2 className="text-xl font-bold text-slate-800 mb-6">Academy Organization Overview</h2>
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+           <div className="h-64">
+              <h3 className="text-sm font-bold text-slate-400 uppercase mb-4">Performance by Class</h3>
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={classData}>
+                  <CartesianGrid strokeDasharray="3 3" vertical={false} />
+                  <XAxis dataKey="name" axisLine={false} tickLine={false} />
+                  <YAxis axisLine={false} tickLine={false} domain={[0, 100]} />
+                  <Tooltip cursor={{fill: '#f1f5f9'}} contentStyle={{borderRadius: '12px'}} />
+                  <Bar dataKey="score" fill="#6366f1" radius={[4, 4, 0, 0]} barSize={40} />
+                </BarChart>
+              </ResponsiveContainer>
+           </div>
+           
+           <div>
+              <h3 className="text-sm font-bold text-slate-400 uppercase mb-4">Coach Leaderboard</h3>
+              <div className="space-y-4">
+                 {classData.sort((a,b) => b.score - a.score).map((c, i) => (
+                   <div key={c.name} className="flex items-center gap-4 p-4 bg-slate-50 rounded-xl hover:bg-slate-100 transition-colors cursor-pointer">
+                      <div className="w-8 h-8 rounded-full bg-white shadow-sm flex items-center justify-center font-bold text-slate-700">
+                        {i + 1}
+                      </div>
+                      <div className="flex-1">
+                        <p className="font-bold text-slate-800">{c.name}</p>
+                        <p className="text-xs text-slate-400">{c.agents} Agents Assigned</p>
+                      </div>
+                      <div className="text-right">
+                        <p className="font-black text-indigo-600 text-lg">{c.score}%</p>
+                        <p className="text-[10px] text-emerald-500 font-bold flex items-center justify-end gap-1">
+                          <TrendingUp className="w-3 h-3" /> +2.4%
+                        </p>
+                      </div>
+                   </div>
+                 ))}
+              </div>
+           </div>
         </div>
       </div>
 
-      {/* Top Performers Table */}
-      <div className="bg-white p-4 md:p-6 rounded-xl shadow-sm border border-slate-200">
-        <h3 className="text-lg font-semibold text-slate-800 mb-4">Top 5 Performers</h3>
-        <div className="overflow-x-auto w-full">
-          <table className="w-full text-left min-w-[500px]">
-            <thead className="text-sm font-medium text-slate-500 border-b">
-              <tr>
-                <th className="pb-3 pl-2">Name</th>
-                <th className="pb-3">CEFR</th>
-                <th className="pb-3">Overall Avg</th>
-                <th className="pb-3">Opportunity</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-slate-100">
-              {topPerformers.map((agent, i) => (
-                <tr key={agent.testId} className="hover:bg-slate-50 transition-colors">
-                  <td className="py-3 pl-2 font-medium text-slate-800">{agent.name}</td>
-                  <td className="py-3 text-slate-600">
-                    <span className="px-2 py-1 bg-blue-100 text-blue-700 rounded text-xs font-bold uppercase">
-                      {agent.cefr}
-                    </span>
-                  </td>
-                  <td className="py-3 text-slate-600">{agent.overallAvg}%</td>
-                  <td className="py-3 text-slate-600 text-sm truncate max-w-[150px] md:max-w-[200px]">{agent.primaryOpportunity}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      </div>
+      <h3 className="text-lg font-bold text-slate-800 mt-8">Global Agent Directory</h3>
+      <AgentList agents={agents} onSelectAgent={setSelectedAgent} />
     </div>
   );
 };
@@ -176,6 +209,11 @@ const StatCard: React.FC<{ icon: React.ReactNode, label: string, value: string |
       <p className="text-2xl font-bold text-slate-800">{value}</p>
     </div>
   </div>
+);
+
+// Helper for imports
+const CheckCircle2: React.FC<{ className?: string }> = ({ className }) => (
+  <svg className={className} xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><path d="m9 12 2 2 4-4"/></svg>
 );
 
 export default Dashboard;

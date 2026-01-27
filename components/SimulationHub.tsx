@@ -4,6 +4,7 @@ import { MessageSquare, Mail, Mic, ChevronRight, Play, Clock, XCircle, ArrowLeft
 import { ChatMode } from './SimulationHub/modes/ChatMode';
 import { EmailMode } from './SimulationHub/modes/EmailMode';
 import { VoiceMode } from './SimulationHub/modes/VoiceMode';
+import { AccessProfile } from '../types';
 
 type Mode = 'chat' | 'email' | 'voice' | null;
 
@@ -14,6 +15,10 @@ interface Scenario {
   description: string;
   initialMessage: string;
   context: string;
+}
+
+interface Props {
+  currentUser?: AccessProfile;
 }
 
 const SCENARIOS: Scenario[] = [
@@ -43,7 +48,7 @@ const SCENARIOS: Scenario[] = [
   }
 ];
 
-export const SimulationHub: React.FC = () => {
+export const SimulationHub: React.FC<Props> = ({ currentUser }) => {
   const [activeMode, setActiveMode] = useState<Mode>(null);
   const [activeScenario, setActiveScenario] = useState<Scenario | null>(null);
 
@@ -181,9 +186,9 @@ export const SimulationHub: React.FC = () => {
 
       {/* Render Mode Component */}
       <div className="flex-1 overflow-hidden relative">
-        {activeMode === 'chat' && <ChatMode scenario={activeScenario} onClose={reset} />}
-        {activeMode === 'email' && <EmailMode scenario={activeScenario} onClose={reset} />}
-        {activeMode === 'voice' && <VoiceMode scenario={activeScenario} onClose={reset} />}
+        {activeMode === 'chat' && <ChatMode scenario={activeScenario} onClose={reset} currentUser={currentUser} />}
+        {activeMode === 'email' && <EmailMode scenario={activeScenario} onClose={reset} currentUser={currentUser} />}
+        {activeMode === 'voice' && <VoiceMode scenario={activeScenario} onClose={reset} currentUser={currentUser} />}
       </div>
     </div>
   );

@@ -10,6 +10,7 @@ export interface User {
   role: Role;
   name: string;
   avatar?: string;
+  id?: string; // Unified ID for linking
 }
 
 export interface AccessProfile {
@@ -47,9 +48,19 @@ export interface AgentHistoryEntry {
   grammar: number;
 }
 
+export interface ClassGroup {
+  id: string;
+  name: string;
+  coachId: string;
+  agentIds: string[];
+}
+
 export interface Agent {
   testId: string;
   name: string;
+  email: string;
+  coachId?: string;
+  classId?: string;
   writing: number;
   speaking: number;
   listening: number;
@@ -123,6 +134,11 @@ export interface WorkNature {
 }
 
 export interface SimulationResult {
+  id?: string;
+  agentEmail?: string;
+  timestamp?: string;
+  type?: 'Voice' | 'Chat' | 'Email';
+  scenario?: string;
   empathy: number;
   accuracy: number;
   compliance: number;

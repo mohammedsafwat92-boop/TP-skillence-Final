@@ -14,6 +14,7 @@ import { RequireRole } from './components/RequireRole';
 import { AccessManagement } from './components/AccessManagement';
 import SimulationHub from './components/SimulationHub';
 import { COUNTRIES } from './constants';
+import Dashboard from './components/Dashboard';
 
 const App: React.FC = () => {
   const [profile, setProfile] = useState<AccessProfile | null>(null);
@@ -307,7 +308,7 @@ const App: React.FC = () => {
                 />
               </RequireRole>
             ) : activeHub === 'Simulation' ? (
-              <SimulationHub />
+              <SimulationHub currentUser={profile} />
             ) : activeTab === 'Upload' ? (
               <RequireRole userRole={profile.role} allowed={['Admin']}>
                 <BulkUploader 
@@ -320,7 +321,7 @@ const App: React.FC = () => {
             ) : activeTab === 'Assign' && isScopeLocked(activeHub) ? (
               <LockOverlay currentScope={activeHub} onUnlock={handleUnlock} />
             ) : (
-              <HubContent hub={activeHub} tab={activeTab} logs={auditLogs} />
+              <HubContent hub={activeHub} tab={activeTab} logs={auditLogs} user={profile} />
             )}
           </HubShell>
         </div>
@@ -333,21 +334,19 @@ const Loader2: React.FC<{ className?: string }> = ({ className }) => (
   <svg className={className} xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 12a9 9 0 1 1-6.219-8.56"/></svg>
 );
 
-const HubContent: React.FC<{ hub: HubType, tab: TabType, logs: AuditEntry[] }> = ({ hub, tab, logs }) => {
-  // Shared Overview for SHL
+const HubContent: React.FC<{ hub: HubType, tab: TabType, logs: AuditEntry[], user: AccessProfile }> = ({ hub, tab, logs, user }) => {
+  
+  // Dynamic Dashboard Routing based on Hub and Role
   if (hub === 'SHL' && tab === 'Overview') {
-    return (
-      <div className="space-y-8 animate-in fade-in duration-500 w-full">
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 md:gap-6 w-full">
-          <StatCard label="Total Ingested" value="1,240" trend="+12%" color="blue" />
-          <StatCard label="Avg Confidence" value="94.2%" trend="+2%" color="emerald" />
-          <StatCard label="Critical Risk" value="42" trend="-5%" color="rose" />
-        </div>
-        <div className="bg-slate-50 rounded-2xl p-4 md:p-8 border border-slate-100 h-64 flex items-center justify-center text-slate-300 font-bold border-dashed text-center w-full">
-          Interactive SHL Heatmap Visualization (Loading...)
-        </div>
-      </div>
-    );
+    return <Dashboard userProfile={user} />;
+  }
+  
+  if (hub === 'Agent' && tab === 'Overview') {
+    return <Dashboard userProfile={user} />;
+  }
+
+  if (hub === 'Coach' && tab === 'Overview') {
+     return <Dashboard userProfile={user} />;
   }
 
   // Progress Tab showing Audit Logs

@@ -2,11 +2,13 @@
 import React, { useState, useRef } from 'react';
 import { Mail, Send, Reply, User, Bot, AlertCircle, CheckCircle2, Paperclip, MoreHorizontal, StopCircle } from 'lucide-react';
 import { runSimulationTurn, analyzeSimulation } from '../../../services/geminiService';
-import { SimulationResult } from '../../../types';
+import { SimulationResult, AccessProfile } from '../../../types';
+import { dataStore } from '../../../services/DataStore';
 
 interface Props {
   scenario: any;
   onClose: () => void;
+  currentUser?: AccessProfile;
 }
 
 interface EmailMessage {
@@ -19,7 +21,7 @@ interface EmailMessage {
   timestamp: string;
 }
 
-export const EmailMode: React.FC<Props> = ({ scenario, onClose }) => {
+export const EmailMode: React.FC<Props> = ({ scenario, onClose, currentUser }) => {
   const [emails, setEmails] = useState<EmailMessage[]>([
     {
       id: 1,
@@ -85,6 +87,15 @@ export const EmailMode: React.FC<Props> = ({ scenario, onClose }) => {
     setIsTyping(true);
     const transcript = emails.map(e => `[${e.role === 'user' ? 'Agent' : 'Customer'}] Subject: ${e.subject} \n Body: ${e.body}`).join('\n\n');
     const analysis = await analyzeSimulation(transcript, 'Email', scenario.title);
+    
+    if (currentUser) {
+        dataStore.addSimulationResult(currentUser.email, {
+            ...analysis,
+            scenario: scenario.title,
+            type: 'Email'
+        });
+    }
+
     setResult(analysis);
     setIsTyping(false);
   };
@@ -103,6 +114,10 @@ export const EmailMode: React.FC<Props> = ({ scenario, onClose }) => {
                  )}
               </div>
               <h2 className="text-2xl font-black text-slate-900 mb-2">Email Audit {result.status}</h2>
+              <div className="flex items-center justify-center gap-2 mb-6">
+                 <span className="text-xs font-bold text-slate-400 uppercase tracking-widest">Progress Saved</span>
+                 <CheckCircle2 className="w-4 h-4 text-emerald-500" />
+              </div>
               <div className="grid grid-cols-3 gap-4 mb-6 text-left">
                  <div className="bg-slate-50 p-3 rounded-xl border">
                    <p className="text-[10px] uppercase font-bold text-slate-400">Empathy</p>

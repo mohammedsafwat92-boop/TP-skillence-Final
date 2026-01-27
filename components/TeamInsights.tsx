@@ -143,7 +143,7 @@ const TeamInsights: React.FC<Props> = ({ agents }) => {
                        {cohortAgents.map(a => (
                          <tr key={a.testId} className="border-b border-slate-100 last:border-0">
                            <td className="px-4 py-3 font-medium text-slate-700">{a.name}</td>
-                           <td className="px-4 py-3 text-rose-500 font-bold">{a[stats.topCoachingNeed.skill]}%</td>
+                           <td className="px-4 py-3 text-rose-500 font-bold">{a[stats.topCoachingNeed.skill] as number}%</td>
                          </tr>
                        ))}
                      </tbody>

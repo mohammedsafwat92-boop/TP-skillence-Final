@@ -2,14 +2,16 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Mic, MicOff, StopCircle, User, Bot, AlertCircle, CheckCircle2, Waves, Activity } from 'lucide-react';
 import { connectToLiveSession, analyzeSimulation } from '../../../services/geminiService';
-import { SimulationResult } from '../../../types';
+import { SimulationResult, AccessProfile } from '../../../types';
+import { dataStore } from '../../../services/DataStore';
 
 interface Props {
   scenario: any;
   onClose: () => void;
+  currentUser?: AccessProfile;
 }
 
-export const VoiceMode: React.FC<Props> = ({ scenario, onClose }) => {
+export const VoiceMode: React.FC<Props> = ({ scenario, onClose, currentUser }) => {
   const [isConnected, setIsConnected] = useState(false);
   const [isListening, setIsListening] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -220,11 +222,21 @@ export const VoiceMode: React.FC<Props> = ({ scenario, onClose }) => {
   const handleFinish = async () => {
     stopAudioCapture();
     sessionRef.current?.disconnect();
+    
     // In a real live audio scenario, we might not have a full text transcript readily available 
     // unless we also requested transcription. For this prototype, we'll simulate a result.
     // Ideally, we'd accumulate the user/model turns from transcription events.
     const mockTranscript = "Agent: [Audio Interaction]\nCustomer: [Audio Interaction]";
     const analysis = await analyzeSimulation(mockTranscript, 'Voice', scenario.title);
+    
+    if (currentUser) {
+        dataStore.addSimulationResult(currentUser.email, {
+            ...analysis,
+            scenario: scenario.title,
+            type: 'Voice'
+        });
+    }
+
     setResult(analysis);
   };
 
@@ -250,6 +262,10 @@ export const VoiceMode: React.FC<Props> = ({ scenario, onClose }) => {
                  )}
               </div>
               <h2 className="text-2xl font-black mb-2">Voice Analysis {result.status}</h2>
+              <div className="flex items-center justify-center gap-2 mb-6">
+                 <span className="text-xs font-bold text-slate-400 uppercase tracking-widest">Progress Saved</span>
+                 <CheckCircle2 className="w-4 h-4 text-emerald-500" />
+              </div>
               <div className="grid grid-cols-3 gap-4 mb-6 text-left">
                  <div className="bg-slate-50 p-3 rounded-xl border">
                    <p className="text-[10px] uppercase font-bold text-slate-400">Empathy</p>
