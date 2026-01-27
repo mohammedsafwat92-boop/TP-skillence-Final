@@ -13,6 +13,7 @@ import { accessService } from './services/AccessService';
 import { RequireRole } from './components/RequireRole';
 import { AccessManagement } from './components/AccessManagement';
 import SimulationHub from './components/SimulationHub';
+import { LanguageHub } from './components/LanguageHub/LanguageHub';
 import { COUNTRIES } from './constants';
 import Dashboard from './components/Dashboard';
 
@@ -309,6 +310,8 @@ const App: React.FC = () => {
               </RequireRole>
             ) : activeHub === 'Simulation' ? (
               <SimulationHub currentUser={profile} />
+            ) : activeHub === 'Language' && activeTab === 'Overview' ? (
+              <LanguageHub currentUser={profile} />
             ) : activeTab === 'Upload' ? (
               <RequireRole userRole={profile.role} allowed={['Admin']}>
                 <BulkUploader 

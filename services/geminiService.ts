@@ -13,29 +13,82 @@ const cleanJson = (text: string): string => {
   return cleaned.trim();
 };
 
+export interface QuizQuestion {
+  id: string;
+  question: string;
+  options: string[];
+  correctAnswer: string;
+  explanation?: string;
+}
+
+export async function generateWorksheetQuestions(topic: string, level: string = 'Intermediate'): Promise<QuizQuestion[]> {
+  const response = await ai.models.generateContent({
+    model: 'gemini-3-flash-preview',
+    contents: `Generate 5 multiple-choice questions for a student at ${level} level about "${topic}".
+    Ensure the questions test practical understanding, not just definitions.
+    Return strictly JSON format:
+    [
+      { "id": "q1", "question": "...", "options": ["A", "B", "C", "D"], "correctAnswer": "A", "explanation": "Why A is correct" }
+    ]`,
+    config: {
+      responseMimeType: 'application/json',
+      responseSchema: {
+        type: Type.ARRAY,
+        items: {
+          type: Type.OBJECT,
+          properties: {
+            id: { type: Type.STRING },
+            question: { type: Type.STRING },
+            options: { type: Type.ARRAY, items: { type: Type.STRING } },
+            correctAnswer: { type: Type.STRING },
+            explanation: { type: Type.STRING }
+          }
+        }
+      }
+    }
+  });
+
+  try {
+    return JSON.parse(cleanJson(response.text || '[]'));
+  } catch (e) {
+    console.error("Failed to parse Quiz JSON", e);
+    return [];
+  }
+}
+
 // Parse content from uploaded SHL reports into structured data.
 export const parseSHLFile = async (fileName: string, content: string): Promise<Partial<SHLData>> => {
   const response = await ai.models.generateContent({
     model: 'gemini-3-flash-preview',
-    contents: `Parse this SHL report content and extract metrics. FileName: ${fileName}. Content: ${content}`,
+    contents: `Parse this SHL report content and extract the candidate's email and performance metrics. 
+    FileName: ${fileName}. 
+    Content: ${content}.
+    If the email is not explicitly found, try to infer it from the name or fileName, or return null.`,
     config: {
       responseMimeType: 'application/json',
       responseSchema: {
         type: Type.OBJECT,
         properties: {
+          agentEmail: { type: Type.STRING, description: "Candidate's email address" },
           listening: { type: Type.NUMBER },
           speaking: { type: Type.NUMBER },
           reading: { type: Type.NUMBER },
-          sales: { type: Type.NUMBER },
-          cefr: { type: Type.STRING },
+          overall: { type: Type.NUMBER },
+          cefr: { type: Type.STRING, description: "CEFR Level (e.g. A1, A2, B1, B2, C1, C2)" },
           opportunities: { type: Type.ARRAY, items: { type: Type.STRING } }
-        }
+        },
+        required: ["agentEmail", "listening", "speaking", "overall", "cefr"]
       }
     }
   });
   
   try {
-    return JSON.parse(cleanJson(response.text || '{}'));
+    const data = JSON.parse(cleanJson(response.text || '{}'));
+    // Ensure agentEmail is lowercase for consistency
+    if (data.agentEmail) {
+      data.agentEmail = data.agentEmail.toLowerCase();
+    }
+    return data;
   } catch (e) {
     console.error("Failed to parse SHL JSON", e);
     return {};

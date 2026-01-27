@@ -1,5 +1,5 @@
 
-import { Agent, ClassGroup, SimulationResult, User } from '../types';
+import { Agent, ClassGroup, SimulationResult, User, SHLData, Course } from '../types';
 
 interface StoreData {
   classes: ClassGroup[];
@@ -62,7 +62,9 @@ class DataStore {
         primaryOpportunity: Math.random() > 0.5 ? 'Empathy' : 'Accuracy',
         recommendedPlan: 'Module 1; Module 2',
         assignedModules: '',
-        history: []
+        courses: [],
+        history: [],
+        completedLessonIds: []
       };
     });
 
@@ -107,6 +109,72 @@ class DataStore {
 
   // --- ACTIONS ---
 
+  upsertAgentFromSHL(shlData: SHLData): Agent {
+    let agent = this.getAgentByEmail(shlData.agentEmail);
+
+    if (!agent) {
+      // Create new Agent
+      agent = {
+        testId: `SHL-${Math.random().toString(36).substr(2, 5).toUpperCase()}`,
+        name: shlData.agentEmail.split('@')[0], // Fallback name
+        email: shlData.agentEmail,
+        writing: 50, // Default if missing
+        speaking: shlData.speaking || 0,
+        listening: shlData.listening || 0,
+        grammar: 50, // Default if missing
+        analytical: 50,
+        overallAvg: shlData.overall || 0,
+        cefr: shlData.cefr || 'B1',
+        primaryOpportunity: shlData.opportunities?.[0] || 'General Improvement',
+        recommendedPlan: 'Automated Onboarding Plan',
+        assignedModules: '',
+        courses: [],
+        history: [],
+        completedLessonIds: []
+      };
+      this.data.agents.push(agent);
+    } else {
+      // Update existing
+      agent.speaking = shlData.speaking || agent.speaking;
+      agent.listening = shlData.listening || agent.listening;
+      agent.overallAvg = shlData.overall || agent.overallAvg;
+      agent.cefr = shlData.cefr || agent.cefr;
+    }
+
+    // Auto-Assign Courses logic
+    this.assignCoursesBasedOnSkills(agent, shlData);
+
+    this.save();
+    return agent;
+  }
+
+  private assignCoursesBasedOnSkills(agent: Agent, scores: SHLData) {
+    if (!agent.courses) agent.courses = [];
+
+    const addCourse = (id: string, title: string, reason: string) => {
+      if (!agent.courses!.some(c => c.id === id)) {
+        agent.courses!.push({
+          id,
+          title,
+          status: 'Pending',
+          assignedAt: new Date().toISOString(),
+          reason
+        });
+      }
+    };
+
+    if ((scores.speaking || 0) < 60) {
+      addCourse('crs_speak_101', 'Basic Phone Skills', 'Low Speaking Score');
+    }
+
+    if (scores.cefr === 'A1' || scores.cefr === 'A2') {
+      addCourse('crs_eng_bootcamp', 'Intensive English Bootcamp', 'CEFR Level Requirement');
+    }
+
+    // Default onboarding course
+    addCourse('crs_ob_01', 'TP Culture & Values', 'Standard Onboarding');
+  }
+
   addSimulationResult(email: string, result: SimulationResult) {
     const fullResult = {
       ...result,
@@ -140,6 +208,17 @@ class DataStore {
 
     this.save();
     return fullResult;
+  }
+
+  markLessonComplete(agentEmail: string, lessonId: string) {
+    const agent = this.getAgentByEmail(agentEmail);
+    if (agent) {
+      if (!agent.completedLessonIds) agent.completedLessonIds = [];
+      if (!agent.completedLessonIds.includes(lessonId)) {
+        agent.completedLessonIds.push(lessonId);
+        this.save();
+      }
+    }
   }
 }
 

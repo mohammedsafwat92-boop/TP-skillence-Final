@@ -55,6 +55,14 @@ export interface ClassGroup {
   agentIds: string[];
 }
 
+export interface Course {
+  id: string;
+  title: string;
+  status: 'Pending' | 'In Progress' | 'Completed';
+  assignedAt: string;
+  reason?: string;
+}
+
 export interface Agent {
   testId: string;
   name: string;
@@ -71,7 +79,9 @@ export interface Agent {
   primaryOpportunity: string;
   recommendedPlan: string;
   assignedModules: string;
+  courses?: Course[];
   history?: AgentHistoryEntry[];
+  completedLessonIds?: string[]; // New field for LMS progress
 }
 
 export interface DashboardMetrics {
@@ -86,12 +96,13 @@ export interface DashboardMetrics {
 
 export interface SHLData {
   id: string;
-  agentEmail: string;
+  agentEmail: string; // The candidate's email
   listening: number;
   speaking: number;
   reading: number;
   sales: number;
   cefr: string; 
+  overall?: number;
   opportunities: string[];
   confidenceScore: number;
   parsedAt: string;
@@ -100,7 +111,7 @@ export interface SHLData {
 export interface AuditEntry {
   id: string;
   timestamp: string;
-  action: 'UNLOCK' | 'RELOCK' | 'SNAPSHOT' | 'UPLOAD' | 'ASSIGN' | 'ACCESS_CHANGE' | 'LOGIN' | 'LOGIN_DENIED';
+  action: 'UNLOCK' | 'RELOCK' | 'SNAPSHOT' | 'UPLOAD' | 'ASSIGN' | 'ACCESS_CHANGE' | 'LOGIN' | 'LOGIN_DENIED' | 'AUTO_ONBOARD';
   scope: string;
   user: string;
   details: string;

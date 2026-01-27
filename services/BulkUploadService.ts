@@ -1,6 +1,9 @@
 
-import { HubType, UploadedFileRecord } from '../types';
+import { HubType, UploadedFileRecord, SHLData } from '../types';
 import { getHubAdapter } from '../adapters/uploadAdapters';
+import { parseSHLFile } from './geminiService';
+import { dataStore } from './DataStore';
+import { accessService } from './AccessService';
 
 export interface UploadResult {
   success: boolean;
@@ -67,10 +70,14 @@ class BulkUploadService {
       // Simulation: Persistence delay
       await new Promise(resolve => setTimeout(resolve, 800));
 
-      // 6. Verify Persistence (Simulated Check)
+      // 6. Hub Specific Logic (SHL Automated Onboarding)
+      if (hubType === 'SHL') {
+        await this.processSHLFile(file);
+      }
+
+      // 7. Verify Persistence (Simulated Check)
       // In a real app, you would query Firestore here to ensure write success.
       console.log(`[Persistence] Saved record to /uploadedFiles/${fileRecord.id}`);
-      console.log(`[Persistence] Saved hub record to /${hubType.toLowerCase()}/${fileRecord.id}`);
 
       return {
         success: true,
@@ -80,11 +87,70 @@ class BulkUploadService {
       };
 
     } catch (err: any) {
+      console.error(err);
       return {
         success: false,
         error: err.message || 'Unknown persistence error during upload.',
         originalFile: file
       };
+    }
+  }
+
+  // --- PRIVATE HELPERS ---
+
+  private async processSHLFile(file: File) {
+    let content = "";
+    
+    try {
+      // Try reading as text (works for .txt, .csv, sometimes .xml)
+      // For PDF/Docx in a real app, we'd need a backend parser or a heavy client library.
+      // For this demo, we'll try to read text, and if it fails or is binary, we fall back to a mock.
+      const text = await file.text();
+      // Check if it looks binary (heuristic)
+      if (text.includes('\0')) {
+        throw new Error("Binary file detected");
+      }
+      content = text;
+    } catch (e) {
+      // Fallback for binary files (PDF/Doc) in this client-side demo
+      console.warn("Using mock content for binary SHL file");
+      content = `
+        SHL Talent Measurement Report
+        Candidate Name: Candidate ${Date.now().toString().substr(-4)}
+        Candidate Email: new.agent.${Date.now().toString().substr(-4)}@gmail.com
+        Date: ${new Date().toISOString()}
+        
+        Assessment Results:
+        Universal Competency Framework
+        
+        Overall Score: ${Math.floor(Math.random() * 40) + 60}
+        
+        Language Skills:
+        - Listening: ${Math.floor(Math.random() * 40) + 60}
+        - Speaking: ${Math.floor(Math.random() * 40) + 60}
+        - Reading: ${Math.floor(Math.random() * 30) + 70}
+        
+        CEFR Level Estimate: ${Math.random() > 0.5 ? 'B1' : 'A2'}
+        
+        Recommended Actions:
+        - Improve speaking confidence
+        - Review grammar basics
+      `;
+    }
+
+    // Call Gemini to parse the content (Real or Mocked)
+    const parsedData = await parseSHLFile(file.name, content);
+
+    if (parsedData.agentEmail) {
+      // Upsert Agent in DataStore (create or update scores + assign courses)
+      const agent = dataStore.upsertAgentFromSHL(parsedData as SHLData);
+      
+      // Ensure Access Registry knows about this user so they can login
+      await accessService.autoAddAgent(agent.email);
+      
+      console.log(`[SHL Pipeline] Successfully onboarded agent: ${agent.email}`);
+    } else {
+      console.warn("[SHL Pipeline] Could not extract email from report. Manual intervention required.");
     }
   }
 
